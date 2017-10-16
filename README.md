@@ -18,4 +18,3 @@ Run:
 ```bash
 $ npm t
 ```
-
