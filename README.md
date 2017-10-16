@@ -1,5 +1,5 @@
 # ProponoJS
-![Build status](https://travis-ci.org/malcyL/proponojs.svg?branch=master)
+[![Build Status](https://travis-ci.org/malcyL/proponojs.svg?branch=master)](https://travis-ci.org/malcyL/proponojs)
 ---
 [Propono](https://github.com/iHiD/propono) is a pub/sub gem built on top of Amazon Web Services (AWS). It uses Simple Notification Service (SNS) and Simple Queue Service (SQS) to seamlessly pass messages throughout your infrastructure.
 
