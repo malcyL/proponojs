@@ -21,7 +21,7 @@ module.exports = {
     library: process.env.NAME,
     libraryTarget: process.env.TARGET,
     path: __dirname,
-    filename: (PROD) ? 'build/proponojs.min.js' : 'build/proponojs.js'
+    filename: (PROD) ? 'dist/proponojs.min.js' : 'dist/proponojs.js'
   },
   module: {
     loaders: [
