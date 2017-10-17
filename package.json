@@ -4,11 +4,13 @@
   "description": "Propono is a pub/sub gem built on top of Amazon Web Services (AWS). It uses Simple Notification Service (SNS) and Simple Queue Service (SQS) to seamlessly pass messages throughout your infrastructure.",
   "main": "src/App.es6",
   "dependencies": {
+    "aws-sdk": "^2.135.0",
     "dotenv": "^2.0.0",
     "webpack": "^1.13.2",
     "webpack-dev-server": "^1.16.2"
   },
   "devDependencies": {
+    "aws-sdk-mock": "^1.7.0",
     "babel-cli": "^6.16.0",
     "babel-core": "^6.17.0",
     "babel-loader": "^6.2.5",
