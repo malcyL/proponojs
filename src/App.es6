@@ -1,1 +1,1 @@
-module.exports = require('./proponojs.es6');
+module.exports = require('./proponojs.js');
