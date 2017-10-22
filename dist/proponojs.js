@@ -56,8 +56,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 	
-	exports.proponojs = __webpack_require__(1);
-	exports.env_config = __webpack_require__(499);
+	module.exports = __webpack_require__(1);
 
 /***/ }),
 /* 1 */
@@ -29412,33 +29411,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	module.exports = 0;
 
-
-/***/ }),
-/* 499 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	/* WEBPACK VAR INJECTION */(function(process) {const accessKey = process.env.PROPONOJS_AWS_ACCESS_KEY_ID;
-	const secretKey = process.env.PROPONOJS_AWS_SECRET_KEY;
-	const queueRegion = process.env.PROPONOJS_QUEUE_REGION;
-	
-	// The following are the complete set of Propono configuration
-	// parameters. These are not yet supported by ProponoJS
-	//
-	// const maxRetries = process.env.PROPONOJS_MAX_RETRIES;
-	// const numMessages_per_poll = process.env.PROPONOJS_NUM_MESSAGES_PER_POLL;
-	// const useIamProfile = process.env.PROPONOJS.USE_IAM_PROFILE;
-	// const applicationName = process.env.PROPONOJS_APPLICATION_NAME;
-	// const queueSuffix = process.env.PROPONOJS_QUEUE_SUFFIX;
-	
-	const config = {
-	  accessKeyId: accessKey,
-	  secretAccessKey: secretKey,
-	  region: queueRegion,
-	};
-	
-	module.exports = config;
-	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(4)))
 
 /***/ })
 /******/ ])
