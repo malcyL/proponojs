@@ -1,18 +1,18 @@
 const path = require('path');
 const config = require('./package.json');
-
 const webpack = require('webpack');
+
 require('dotenv').config();
 
 const PROD = process.env.NODE_ENV === 'production';
 
 let plugins = [];
 
-PROD ? [
-    plugins.push(new webpack.optimize.UglifyJsPlugin({
-      compress: { warnings: false }
-    }))
-  ] : '';
+// PROD ? [
+//     plugins.push(new webpack.optimize.UglifyJsPlugin({
+//       compress: { warnings: false }
+//     }))
+//   ] : '';
 
 module.exports = {
   entry: path.resolve(__dirname, config.main),
@@ -25,7 +25,8 @@ module.exports = {
   },
   module: {
     loaders: [
-      {test: /\.es6?$/, exclude: /node_modules/, loader: 'babel'}
+      { test: /\.es6?$/, exclude: /node_modules/, loader: 'babel'},
+      { test: /\.json$/, loader: 'json-loader' }
     ]
   },
   plugins: plugins
