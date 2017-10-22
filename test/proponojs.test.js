@@ -16,11 +16,12 @@ describe('#ProponoJS Library Test', function () {
   });
 
   describe('#Publish', function () {
-    it('should return topic name', function () {
-      AWS.mock('SNS', 'createTopic', 'test-topic-arn');
+    it('should create topic and publish message', function () {
+      AWS.mock('SNS', 'createTopic', {'TopicArn':'testArn'});
+      AWS.mock('SNS', 'publish', {'MessageId':'testMessage'});
 
-      proponojs({}).publish('test-topic', 'test-message', function(err, topic) {
-        topic.should.eq('test-topic-arn');
+      proponojs({}).publish('test-topic', 'test-message', function(err, data) {
+        data.MessageId.should.eq('testMessage');
       });
 
       AWS.restore();

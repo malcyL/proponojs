@@ -6,6 +6,7 @@
   "dependencies": {
     "aws-sdk": "^2.135.0",
     "dotenv": "^2.0.0",
+    "shortid": "^2.2.8",
     "webpack": "^1.13.2",
     "webpack-dev-server": "^1.16.2"
   },
@@ -27,7 +28,8 @@
   "scripts": {
     "build": "NODE_ENV=development webpack && webpack",
     "dev": "webpack-dev-server --inline --hot",
-    "test": "mocha",
+    "test": "mocha test",
+    "integration-test": "mocha integration_test",
     "test:cover": "istanbul cover _mocha -- --compilers js:babel-core/register",
     "coverage": "babel-node ./node_modules/.bin/isparta cover mocha -- --compilers js:babel-core/register",
     "lint": "./node_modules/eslint/bin/eslint.js src/*"
