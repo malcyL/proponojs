@@ -1,6 +1,7 @@
 const path = require('path');
 const config = require('./package.json');
 const webpack = require('webpack');
+const nodeExternals = require('webpack-node-externals');
 
 require('dotenv').config();
 
@@ -16,6 +17,10 @@ let plugins = [];
 
 module.exports = {
   entry: path.resolve(__dirname, config.main),
+
+  target: 'node', // in order to ignore built-in modules like path, fs, etc.
+  externals: [nodeExternals()], // in order to ignore all modules in node_modules folder
+
   devtool: 'source-map',
   output: {
     library: process.env.NAME,

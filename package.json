@@ -23,7 +23,8 @@
     "isparta": "^4.0.0",
     "istanbul": "^0.4.5",
     "json-loader": "^0.5.7",
-    "mocha": "^3.1.2"
+    "mocha": "^3.1.2",
+    "webpack-node-externals": "^1.6.0"
   },
   "scripts": {
     "build": "NODE_ENV=development webpack && webpack",
