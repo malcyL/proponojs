@@ -3,7 +3,7 @@ import chai from "chai";
 var AWS = require('aws-sdk-mock');
 
 // Import the proponojs class instance.
-import proponojs from "../src/App.es6";
+var proponojs = require('../src/App.es6').proponojs;
 
 chai.should();
 
