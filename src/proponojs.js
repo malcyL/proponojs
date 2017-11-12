@@ -39,21 +39,21 @@ class ProponoJS {
   listen(topic, processMessage) {
     this.createTopicQueueAndSubscription(topic, (createErr, queueUrl) => {
       if (createErr) {
-        cb(createErr);
+        throw createErr;
       } else {
         const app = Consumer.create({
-          queueUrl: queueUrl,
+          queueUrl,
           handleMessage: (message, done) => {
             const body = JSON.parse(message.Body);
             const payload = JSON.parse(body.Message);
-            processMessage(payload.message,done);
+            processMessage(payload.message, done);
           },
-          sqs: new AWS.SQS()
+          sqs: new AWS.SQS(),
         });
 
-        app.on('error', (err) => {
-          console.log(err.message);
-        });
+        // app.on('error', (err) => {
+        //   console.log(err.message);
+        // });
 
         app.start();
       }
