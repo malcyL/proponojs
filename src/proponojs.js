@@ -7,9 +7,11 @@ class ProponoJS {
   constructor(config) {
     this.config = config;
     AWS.config.update(config);
+    this.sns = new AWS.SNS();
+    this.sqs = new AWS.SQS();
   }
 
-  publish(topic, message, cb) { // eslint-disable-line class-methods-use-this
+  publish(topic, message, cb) {
     this.createSnsTopic(topic, (createErr, topicArn) => {
       if (createErr) {
         cb(createErr);
@@ -24,8 +26,7 @@ class ProponoJS {
           TopicArn: topicArn,
         };
 
-        const sns = new AWS.SNS();
-        sns.publish(publishParams, (publishErr, publishData) => {
+        this.sns.publish(publishParams, (publishErr, publishData) => {
           if (publishErr) {
             cb(publishErr);
           } else {
@@ -48,7 +49,7 @@ class ProponoJS {
             const payload = JSON.parse(body.Message);
             processMessage(payload.message, done);
           },
-          sqs: new AWS.SQS(),
+          sqs: this.sqs,
         });
 
         // app.on('error', (err) => {
@@ -88,12 +89,11 @@ class ProponoJS {
     });
   }
 
-  createSnsTopic(topic, cb) { // eslint-disable-line class-methods-use-this
-    const sns = new AWS.SNS();
+  createSnsTopic(topic, cb) {
     const createParams = {
       Name: topic,
     };
-    sns.createTopic(createParams, (createErr, createData) => {
+    this.sns.createTopic(createParams, (createErr, createData) => {
       // console.log('Create Topic err: ' + JSON.stringify(createErr));
       // console.log('Create Topic data: ' + JSON.stringify(createData));
       if (createErr) {
@@ -105,9 +105,8 @@ class ProponoJS {
   }
 
   createSqsQueue(topic, cb) {
-    const sqs = new AWS.SQS();
     const params = { QueueName: this.queueName(topic) };
-    sqs.createQueue(params, (createErr, createData) => {
+    this.sqs.createQueue(params, (createErr, createData) => {
       // console.log('Create Queue err: ' + JSON.stringify(createErr));
       // console.log('Create Queue data: ' + JSON.stringify(createData));
       if (createErr) {
@@ -124,15 +123,14 @@ class ProponoJS {
     });
   }
 
-  getQueueAttributes(queueUrl, cb) { // eslint-disable-line class-methods-use-this
+  getQueueAttributes(queueUrl, cb) {
     const params = {
       QueueUrl: queueUrl,
       AttributeNames: [
         'QueueArn',
       ],
     };
-    const sqs = new AWS.SQS();
-    sqs.getQueueAttributes(params, (getErr, getData) => {
+    this.sqs.getQueueAttributes(params, (getErr, getData) => {
       if (getErr) {
         cb(getErr);
       } else {
@@ -142,14 +140,13 @@ class ProponoJS {
     });
   }
 
-  subscribeSqsToSns(topicArn, queueArn, cb) { // eslint-disable-line class-methods-use-this
+  subscribeSqsToSns(topicArn, queueArn, cb) {
     const params = {
       Protocol: 'sqs',
       TopicArn: topicArn,
       Endpoint: queueArn,
     };
-    const sns = new AWS.SNS();
-    sns.subscribe(params, (err) => {
+    this.sns.subscribe(params, (err) => {
       if (err) {
         cb(err);
       } else {
@@ -165,8 +162,7 @@ class ProponoJS {
         Policy: JSON.stringify(this.generatePolicy(topicArn, queueArn)),
       },
     };
-    const sqs = new AWS.SQS();
-    sqs.setQueueAttributes(params, (err) => {
+    this.sqs.setQueueAttributes(params, (err) => {
       if (err) {
         cb(err);
       } else {
