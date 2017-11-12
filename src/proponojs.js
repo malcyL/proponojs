@@ -1,4 +1,5 @@
 const AWS = require('aws-sdk');
+const Consumer = require('sqs-consumer');
 
 const shortid = require('shortid');
 
@@ -35,31 +36,29 @@ class ProponoJS {
     });
   }
 
-  listen(topic, cb) {
-    this.createTopicQueueAndSubscription(topic, (createErr, queueArn) => {
+  listen(topic, processMessage) {
+    this.createTopicQueueAndSubscription(topic, (createErr, queueUrl) => {
       if (createErr) {
         cb(createErr);
       } else {
-        cb(null, queueArn);
+        const app = Consumer.create({
+          queueUrl: queueUrl,
+          handleMessage: (message, done) => {
+            const body = JSON.parse(message.Body);
+            const payload = JSON.parse(body.Message);
+            processMessage(payload.message,done);
+          },
+          sqs: new AWS.SQS()
+        });
+
+        app.on('error', (err) => {
+          console.log(err.message);
+        });
+
+        app.start();
       }
     });
   }
-
-  // const app = Consumer.create({
-  //   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
-  //   handleMessage: (message, done) => {
-  //     // ...
-  //     done();
-  //   },
-  //   sqs: new AWS.SQS()
-  // });
-
-  // app.on('error', (err) => {
-  //   console.log(err.message);
-  // });
-
-  // app.start();
-
 
   createTopicQueueAndSubscription(topic, cb) {
     this.createSnsTopic(topic, (createSnsErr, topicArn) => {
@@ -78,7 +77,7 @@ class ProponoJS {
                   if (policyErr) {
                     cb(policyErr);
                   } else {
-                    cb(null, queueArn);
+                    cb(null, queueUrl);
                   }
                 });
               }
