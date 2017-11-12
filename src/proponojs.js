@@ -9,16 +9,10 @@ class ProponoJS {
   }
 
   publish(topic, message, cb) { // eslint-disable-line class-methods-use-this
-    const sns = new AWS.SNS();
-    const createParams = {
-      Name: topic,
-    };
-    sns.createTopic(createParams, (createErr, createData) => {
+    this.createSnsTopic(topic, (createErr, topicArn) => {
       if (createErr) {
         cb(createErr);
       } else {
-        const topicArn = createData.TopicArn;
-
         const body = {
           id: shortid.generate(),
           message,
@@ -29,6 +23,7 @@ class ProponoJS {
           TopicArn: topicArn,
         };
 
+        const sns = new AWS.SNS();
         sns.publish(publishParams, (publishErr, publishData) => {
           if (publishErr) {
             cb(publishErr);
@@ -38,6 +33,174 @@ class ProponoJS {
         });
       }
     });
+  }
+
+  listen(topic, cb) {
+    this.createTopicQueueAndSubscription(topic, (createErr, queueArn) => {
+      if (createErr) {
+        cb(createErr);
+      } else {
+        cb(null, queueArn);
+      }
+    });
+  }
+
+  // const app = Consumer.create({
+  //   queueUrl: 'https://sqs.eu-west-1.amazonaws.com/account-id/queue-name',
+  //   handleMessage: (message, done) => {
+  //     // ...
+  //     done();
+  //   },
+  //   sqs: new AWS.SQS()
+  // });
+
+  // app.on('error', (err) => {
+  //   console.log(err.message);
+  // });
+
+  // app.start();
+
+
+  createTopicQueueAndSubscription(topic, cb) {
+    this.createSnsTopic(topic, (createSnsErr, topicArn) => {
+      if (createSnsErr) {
+        cb(createSnsErr);
+      } else {
+        this.createSqsQueue(topic, (createSqsErr, queueUrl, queueArn) => {
+          if (createSqsErr) {
+            cb(createSqsErr);
+          } else {
+            this.subscribeSqsToSns(topicArn, queueArn, (subscribeErr) => {
+              if (subscribeErr) {
+                cb(subscribeErr);
+              } else {
+                this.setSqsPolicy(topicArn, queueUrl, queueArn, (policyErr) => {
+                  if (policyErr) {
+                    cb(policyErr);
+                  } else {
+                    cb(null, queueArn);
+                  }
+                });
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+
+  createSnsTopic(topic, cb) { // eslint-disable-line class-methods-use-this
+    const sns = new AWS.SNS();
+    const createParams = {
+      Name: topic,
+    };
+    sns.createTopic(createParams, (createErr, createData) => {
+      // console.log('Create Topic err: ' + JSON.stringify(createErr));
+      // console.log('Create Topic data: ' + JSON.stringify(createData));
+      if (createErr) {
+        cb(createErr);
+      } else {
+        cb(null, createData.TopicArn);
+      }
+    });
+  }
+
+  createSqsQueue(topic, cb) {
+    const sqs = new AWS.SQS();
+    const params = { QueueName: this.queueName(topic) };
+    sqs.createQueue(params, (createErr, createData) => {
+      // console.log('Create Queue err: ' + JSON.stringify(createErr));
+      // console.log('Create Queue data: ' + JSON.stringify(createData));
+      if (createErr) {
+        cb(createErr);
+      } else {
+        this.getQueueAttributes(createData.QueueUrl, (getAttributesErr, queueArn) => {
+          if (getAttributesErr) {
+            cb(getAttributesErr);
+          } else {
+            cb(null, createData.QueueUrl, queueArn);
+          }
+        });
+      }
+    });
+  }
+
+  getQueueAttributes(queueUrl, cb) { // eslint-disable-line class-methods-use-this
+    const params = {
+      QueueUrl: queueUrl,
+      AttributeNames: [
+        'QueueArn',
+      ],
+    };
+    const sqs = new AWS.SQS();
+    sqs.getQueueAttributes(params, (getErr, getData) => {
+      if (getErr) {
+        cb(getErr);
+      } else {
+        // console.log('Get Queue data: ' + JSON.stringify(getData));
+        cb(null, getData.Attributes.QueueArn);
+      }
+    });
+  }
+
+  subscribeSqsToSns(topicArn, queueArn, cb) { // eslint-disable-line class-methods-use-this
+    const params = {
+      Protocol: 'sqs',
+      TopicArn: topicArn,
+      Endpoint: queueArn,
+    };
+    const sns = new AWS.SNS();
+    sns.subscribe(params, (err) => {
+      if (err) {
+        cb(err);
+      } else {
+        cb();
+      }
+    });
+  }
+
+  setSqsPolicy(topicArn, queueUrl, queueArn, cb) {
+    const params = {
+      QueueUrl: queueUrl,
+      Attributes: {
+        Policy: JSON.stringify(this.generatePolicy(topicArn, queueArn)),
+      },
+    };
+    const sqs = new AWS.SQS();
+    sqs.setQueueAttributes(params, (err) => {
+      if (err) {
+        cb(err);
+      } else {
+        cb();
+      }
+    });
+  }
+
+  generatePolicy(topicArn, queueArn) { // eslint-disable-line class-methods-use-this
+    return {
+      Version: '2008-10-17',
+      Id: `${queueArn}/SQSDefaultPolicy`,
+      Statement: [
+        {
+          Sid: `${queueArn}-Sid`,
+          Effect: 'Allow',
+          Principal: {
+            AWS: '*',
+          },
+          Action: 'SQS:*',
+          Resource: `${queueArn}`,
+          Condition: {
+            StringEquals: {
+              'aws:SourceArn': `${topicArn}`,
+            },
+          },
+        },
+      ],
+    };
+  }
+
+  queueName(topic) {
+    return `${this.config.applicationName}-${topic}${this.config.queueSuffix}`;
   }
 }
 
