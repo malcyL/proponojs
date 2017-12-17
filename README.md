@@ -33,7 +33,11 @@ proponojs.publish(
   'user', 
   message, 
   (err, data) => {
-    cb(err);
+    if(err) {
+      console.log('Error publishing message');
+    } else {
+      console.log('Message published');
+    }
   }
 );
 ```
