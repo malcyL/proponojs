@@ -1,12 +1,12 @@
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require("aws-sdk"), require("sqs-consumer"), require("shortid"));
+		module.exports = factory(require("aws-sdk"), require("async"), require("shortid"));
 	else if(typeof define === 'function' && define.amd)
-		define(["aws-sdk", "sqs-consumer", "shortid"], factory);
+		define(["aws-sdk", "async", "shortid"], factory);
 	else if(typeof exports === 'object')
-		exports["proponojs"] = factory(require("aws-sdk"), require("sqs-consumer"), require("shortid"));
+		exports["proponojs"] = factory(require("aws-sdk"), require("async"), require("shortid"));
 	else
-		root["proponojs"] = factory(root["aws-sdk"], root["sqs-consumer"], root["shortid"]);
+		root["proponojs"] = factory(root["aws-sdk"], root["async"], root["shortid"]);
 })(this, function(__WEBPACK_EXTERNAL_MODULE_2__, __WEBPACK_EXTERNAL_MODULE_3__, __WEBPACK_EXTERNAL_MODULE_4__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
@@ -57,16 +57,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	'use strict';
 	
 	exports.proponojs = __webpack_require__(1);
-	exports.env_config = __webpack_require__(5);
+	exports.env_config = __webpack_require__(6);
 
 /***/ }),
 /* 1 */
 /***/ (function(module, exports, __webpack_require__) {
 
 	const AWS = __webpack_require__(2);
-	const Consumer = __webpack_require__(3);
-	
+	const async = __webpack_require__(3);
 	const shortid = __webpack_require__(4);
+	const MessageProcessor = __webpack_require__(5);
 	
 	class ProponoJS {
 	  constructor(config) {
@@ -74,6 +74,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	    AWS.config.update(config);
 	    this.sns = new AWS.SNS();
 	    this.sqs = new AWS.SQS();
+	
+	    // processResponse is passed to aws-sdk as a
+	    // callback. Without the following binds, it's
+	    // no longer bound to the class when it's executed.
+	    this.poll = this.poll.bind(this);
+	    this.processResponse = this.processResponse.bind(this);
+	    this.createMessageProcessor = this.createMessageProcessor.bind(this);
+	    this.processComplete = this.processComplete.bind(this);
 	  }
 	
 	  publish(topic, message, cb) {
@@ -103,27 +111,47 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	
 	  listen(topic, processMessage) {
+	    this.processMessage = processMessage;
 	    this.createTopicQueueAndSubscription(topic, (createErr, queueUrl) => {
 	      if (createErr) {
 	        throw createErr;
 	      } else {
-	        const app = Consumer.create({
-	          queueUrl,
-	          handleMessage: (message, done) => {
-	            const body = JSON.parse(message.Body);
-	            const payload = JSON.parse(body.Message);
-	            processMessage(payload.message, done);
-	          },
-	          sqs: this.sqs,
-	        });
-	
-	        // app.on('error', (err) => {
-	        //   console.log(err.message);
-	        // });
-	
-	        app.start();
+	        this.queueUrl = queueUrl;
+	        this.poll();
 	      }
 	    });
+	  }
+	
+	  poll() {
+	    const params = {
+	      QueueUrl: this.queueUrl,
+	      // AttributeNames: this.attributeNames,
+	      // MessageAttributeNames: this.messageAttributeNames,
+	      MaxNumberOfMessages: 1,
+	      WaitTimeSeconds: 10,
+	      // VisibilityTimeout: this.visibilityTimeout,
+	    };
+	    this.sqs.receiveMessage(params, this.processResponse);
+	  }
+	
+	  processResponse(err, response) {
+	    if (response && response.Messages && response.Messages.length > 0) {
+	      async.each(response.Messages, this.createMessageProcessor, this.processComplete);
+	    } else if (!err) {
+	      this.poll();
+	    }
+	  }
+	
+	  createMessageProcessor(outerMessage, done) {
+	    const processor =
+	          new MessageProcessor(this.sqs, this.queueUrl, outerMessage, this.processMessage);
+	    processor.process(done);
+	  }
+	
+	  processComplete(err) {
+	    if (!err) {
+	      this.poll();
+	    }
 	  }
 	
 	  createTopicQueueAndSubscription(topic, cb) {
@@ -280,7 +308,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 3 */
 /***/ (function(module, exports) {
 
-	module.exports = require("sqs-consumer");
+	module.exports = require("async");
 
 /***/ }),
 /* 4 */
@@ -290,6 +318,47 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ }),
 /* 5 */
+/***/ (function(module, exports) {
+
+	'use strinct';
+	
+	class MessageProcessor {
+	  constructor(sqs, queueUrl, outerMessage, processMessage) {
+	    this.sqs = sqs;
+	    this.queueUrl = queueUrl;
+	    this.outerMessage = outerMessage;
+	    this.processMessage = processMessage;
+	
+	    this.acknowledgeMessage = this.acknowledgeMessage.bind(this);
+	    this.processComplete = this.processComplete.bind(this);
+	  }
+	
+	  process(cb) {
+	    this.cb = cb;
+	    const body = JSON.parse(this.outerMessage.Body);
+	    const payload = JSON.parse(body.Message);
+	    this.processMessage(payload.message, this.acknowledgeMessage);
+	  }
+	
+	  acknowledgeMessage() {
+	    const params = {
+	      QueueUrl: this.queueUrl,
+	      ReceiptHandle: this.outerMessage.ReceiptHandle,
+	    };
+	    // Another function to check for err?
+	    this.sqs.deleteMessage(params, this.processComplete);
+	  }
+	
+	  processComplete(err) {
+	    this.cb(err);
+	  }
+	}
+	
+	module.exports = MessageProcessor;
+
+
+/***/ }),
+/* 6 */
 /***/ (function(module, exports) {
 
 	const accessKey = process.env.PROPONOJS_AWS_ACCESS_KEY_ID;
