@@ -7,6 +7,17 @@ ProponoJS is a javascript version of Propono.
 
 ProponoJS is still in development.
 
+### Installation
+
+ProponoJS is in development - it has not yet been published to npm.
+
+You can pull in the latest development build by adding the following line
+to your package.json:
+
+```
+  "proponojs": "git://github.com/malcyl/proponojs.git",
+```
+
 ### Usage
 
 The first thing to do is configure ProponoJS. You'll be able to do this from
