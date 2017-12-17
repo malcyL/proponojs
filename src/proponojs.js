@@ -1,6 +1,5 @@
 const AWS = require('aws-sdk');
-const Consumer = require('sqs-consumer');
-
+const async = require('async');
 const shortid = require('shortid');
 
 class ProponoJS {
@@ -9,6 +8,15 @@ class ProponoJS {
     AWS.config.update(config);
     this.sns = new AWS.SNS();
     this.sqs = new AWS.SQS();
+
+    // processResponse is passed to aws-sdk as a
+    // callback. Without the following binds, it's
+    // no longer bound to the class when it's executed.
+    this.processResponse = this.processResponse.bind(this);
+    this.unpackAndProcessMessage = this.unpackAndProcessMessage.bind(this);
+    this.poll = this.poll.bind(this);
+    this.processComplete = this.processComplete.bind(this);
+    this.messageProcessedSuccessfully = this.messageProcessedSuccessfully.bind(this);
   }
 
   publish(topic, message, cb) {
@@ -38,27 +46,59 @@ class ProponoJS {
   }
 
   listen(topic, processMessage) {
+    this.processMessage = processMessage;
     this.createTopicQueueAndSubscription(topic, (createErr, queueUrl) => {
       if (createErr) {
         throw createErr;
       } else {
-        const app = Consumer.create({
-          queueUrl,
-          handleMessage: (message, done) => {
-            const body = JSON.parse(message.Body);
-            const payload = JSON.parse(body.Message);
-            processMessage(payload.message, done);
-          },
-          sqs: this.sqs,
-        });
-
-        // app.on('error', (err) => {
-        //   console.log(err.message);
-        // });
-
-        app.start();
+        this.queueUrl = queueUrl;
+        this.poll();
       }
     });
+  }
+
+  poll() {
+    const params = {
+      QueueUrl: this.queueUrl,
+      // AttributeNames: this.attributeNames,
+      // MessageAttributeNames: this.messageAttributeNames,
+      MaxNumberOfMessages: 1,
+      WaitTimeSeconds: 10,
+      // VisibilityTimeout: this.visibilityTimeout,
+    };
+    this.sqs.receiveMessage(params, this.processResponse);
+  }
+
+  processResponse(err, response) {
+    if (response && response.Messages && response.Messages.length > 0) {
+      async.each(response.Messages, this.unpackAndProcessMessage, this.processComplete);
+    } else if (!err) {
+      this.poll();
+    }
+  }
+
+  unpackAndProcessMessage(message, done) {
+    const body = JSON.parse(message.Body);
+    const payload = JSON.parse(body.Message);
+    // Get rid of these
+    this.message = message;
+    this.done = done;
+    this.processMessage(payload.message, this.messageProcessedSuccessfully);
+  }
+
+  messageProcessedSuccessfully() {
+    const params = {
+      QueueUrl: this.queueUrl,
+      ReceiptHandle: this.message.ReceiptHandle,
+    };
+    // Another function to check for err?
+    this.sqs.deleteMessage(params, this.done);
+  }
+
+  processComplete(err) {
+    if (!err) {
+      this.poll();
+    }
   }
 
   createTopicQueueAndSubscription(topic, cb) {
