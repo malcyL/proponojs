@@ -1,6 +1,7 @@
 const AWS = require('aws-sdk');
 const async = require('async');
 const shortid = require('shortid');
+const MessageProcessor = require('./components/messageProcessor');
 
 class ProponoJS {
   constructor(config) {
@@ -12,11 +13,10 @@ class ProponoJS {
     // processResponse is passed to aws-sdk as a
     // callback. Without the following binds, it's
     // no longer bound to the class when it's executed.
-    this.processResponse = this.processResponse.bind(this);
-    this.unpackAndProcessMessage = this.unpackAndProcessMessage.bind(this);
     this.poll = this.poll.bind(this);
+    this.processResponse = this.processResponse.bind(this);
+    this.createMessageProcessor = this.createMessageProcessor.bind(this);
     this.processComplete = this.processComplete.bind(this);
-    this.messageProcessedSuccessfully = this.messageProcessedSuccessfully.bind(this);
   }
 
   publish(topic, message, cb) {
@@ -71,28 +71,16 @@ class ProponoJS {
 
   processResponse(err, response) {
     if (response && response.Messages && response.Messages.length > 0) {
-      async.each(response.Messages, this.unpackAndProcessMessage, this.processComplete);
+      async.each(response.Messages, this.createMessageProcessor, this.processComplete);
     } else if (!err) {
       this.poll();
     }
   }
 
-  unpackAndProcessMessage(message, done) {
-    const body = JSON.parse(message.Body);
-    const payload = JSON.parse(body.Message);
-    // Get rid of these
-    this.message = message;
-    this.done = done;
-    this.processMessage(payload.message, this.messageProcessedSuccessfully);
-  }
-
-  messageProcessedSuccessfully() {
-    const params = {
-      QueueUrl: this.queueUrl,
-      ReceiptHandle: this.message.ReceiptHandle,
-    };
-    // Another function to check for err?
-    this.sqs.deleteMessage(params, this.done);
+  createMessageProcessor(outerMessage, done) {
+    const processor =
+          new MessageProcessor(this.sqs, this.queueUrl, outerMessage, this.processMessage);
+    processor.process(done);
   }
 
   processComplete(err) {
